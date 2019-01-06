@@ -8,12 +8,13 @@ note
 
 deferred class
 	SIF_PRODUCT_WEB
-	inherit
-		SIF_PRODUCT
-			redefine
-				initialize,
-				manufacture
-			end
+
+inherit
+	SIF_PRODUCT
+		redefine
+			initialize,
+			manufacture
+		end
 
 feature {NONE} -- Logging
 
@@ -51,12 +52,9 @@ feature -- Query
 			Result := scheme + "://" + base_url + ":" + external_port.out
 		end
 
-	media_path: STRING
+	media_resource_path: STRING
 			-- Result contains the path as is to be used in uri's for this web product to obtain
 			-- different kinds of media, like images and videos.
-		do
-			Result := "media"
-		end
 
 	media_query_parameter_name: STRING
 			-- Result contains the media query parameter name. This is used to be able to handle different kind of
@@ -78,12 +76,6 @@ feature -- Query
 			-- Result contains a place holder, to be used in template URI's for links
 		do
 			Result := "media_value_template"
-		end
-
-	media_resource_path: STRING
-			-- Result contains the complete path to a media resource
-		do
-			Result := "/" + media_path + "?" + media_query_parameter_name + "=" + media_query_value_template
 		end
 
 	media_descriptor: STRING
@@ -118,6 +110,7 @@ feature {NONE} -- Manufacturing
 		do
 			create scheme.make_empty
 			create base_url.make_empty
+			create media_resource_path.make_from_string("/assets/{media_name}")
 			import		-- Import base_url, sheme and/or port from config file
 			if base_url.is_empty then
 				base_url.make_from_string (default_base_url)
@@ -174,47 +167,26 @@ feature {NONE} -- Implementation
 feature {NONE} -- Implementation
 
 	import
-			-- Import ini file content
+			-- Import web configuration
 		local
-			f: PLAIN_TEXT_FILE
-			l,v: STRING_8
-			p: INTEGER
+			l_web_config: JSON_CONFIG_DAO [SIF_CONFIGURATION_WEB]
 		do
-			create f.make_with_name ("config.ini")
-			if f.exists and f.is_readable then
-				f.open_read
-				from
-					f.read_line
-				until
-					f.exhausted
-				loop
-					l := f.last_string
-					l.left_adjust
-					if not l.is_empty and then l[1] /= '#' then
-						p := l.index_of ('=', 1)
-						if p > 1 then
-							v := l.substring (p + 1, l.count)
-							l.keep_head (p - 1)
-							v.left_adjust
-							v.right_adjust
-							l.right_adjust
-							if l.is_case_insensitive_equal( "base_url") then
-								base_url := v
-							end
-							if l.is_case_insensitive_equal( "scheme") then
-								scheme := v
-							end
-							if l.is_case_insensitive_equal( "port") then
-								port := v.to_integer
-							end
-							if l.is_case_insensitive_equal( "external_port") then
-								external_port := v.to_integer
-							end
-						end
-					end
-					f.read_line
+			create l_web_config.make_from_file ("./config/config_web.json")
+			l_web_config.load_for_component(void)
+			if
+				attached l_web_config.last_item as la_web_config
+			then
+				base_url := la_web_config.self.base_url
+				scheme := la_web_config.self.scheme
+				if attached la_web_config.self.port as la_port then
+					port := la_port
 				end
-				f.close
+				if attached la_web_config.self.external_port as la_external_port then
+					external_port := la_external_port
+				end
+				if not la_web_config.media_server_resource_path.path.is_empty then
+					media_resource_path.make_from_string (la_web_config.media_server_resource_path.path)
+				end
 			end
 		end
 
