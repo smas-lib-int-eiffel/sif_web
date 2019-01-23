@@ -187,6 +187,9 @@ feature {NONE} -- Implementation
 				if not la_web_config.media_server_resource_path.path.is_empty then
 					media_resource_path.make_from_string (la_web_config.media_server_resource_path.path)
 				end
+			else
+				print("Could not open ./config/config_web.json%N")
+				write_information ("Could not open ./config/config_web.json.")
 			end
 		end
 
